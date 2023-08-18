@@ -75,7 +75,7 @@ class DataGenerator:
                 d = self.data[i]
                 text = d[0][:maxlen]
                 x1, x2 = tokenizer.encode(first=text)
-                y = d[1]
+                y = d[1:]
                 X1.append(x1)
                 X2.append(x2)
                 Y.append(y)
@@ -235,70 +235,76 @@ def export_savedmodel(model, export_path):
     print("save model pb success ...")
 
 
-import glob
-def input_fn(data_dir):
-    read_file = glob.glob(os.path.join(data_dir, 'part*'))  # 读取文件夹中所有part-* 文件
-    df = None
-    for i, path in enumerate(read_file):
-        try:
-            data_ = pd.read_csv(path, header=None, names=_CSV_COLUMNS, sep='\t', error_bad_lines=False).fillna(value="")
-            if df is None:
-                df = data_
-            else:
-                df = pd.concat([df, data_], ignore_index=True)
-        except:
-            continue
-    return df
+# import glob
+# def input_fn(data_dir):
+#     read_file = glob.glob(os.path.join(data_dir, 'part*'))  # 读取文件夹中所有part-* 文件
+#     df = None
+#     for i, path in enumerate(read_file):
+#         try:
+#             data_ = pd.read_csv(path, header=None, names=_CSV_COLUMNS, sep='\t', error_bad_lines=False).fillna(value="")
+#             if df is None:
+#                 df = data_
+#             else:
+#                 df = pd.concat([df, data_], ignore_index=True)
+#         except:
+#             continue
+#     return df
 
 if __name__ == '__main__':
 
-    _CSV_COLUMNS = [
-        'label', 'content'
-    ]
+    # _CSV_COLUMNS = [
+    #     'label', 'content'
+    # ]
 
-    # 数据处理, 读取训练集和测试集
+    # # 数据处理, 读取训练集和测试集
     print("begin data processing...")
-    train_df = input_fn("stefan_multi_label_train_data")
-    test_df = input_fn("stefan_multi_label_test_data")
+    # train_df = input_fn("./archive/train.csv")
+    # test_df = input_fn("./archive/test.csv")
 
+    # select_labels = train_df["label"].unique()
+    # labels = []
+    # for label in select_labels:
+    #     if "," not in label:
+    #         if label not in labels:
+    #             labels.append(label)
+    #     else:
+    #         for _ in label.split(","):
+    #             if _ not in labels:
+    #                 labels.append(_)
+    # with open("label.json", "w", encoding="utf-8") as f:
+    #     f.write(json.dumps(dict(zip(range(len(labels)), labels)), ensure_ascii=False, indent=2))
 
-    select_labels = train_df["label"].unique()
-    labels = []
-    for label in select_labels:
-        if "," not in label:
-            if label not in labels:
-                labels.append(label)
-        else:
-            for _ in label.split(","):
-                if _ not in labels:
-                    labels.append(_)
-    with open("label.json", "w", encoding="utf-8") as f:
-        f.write(json.dumps(dict(zip(range(len(labels)), labels)), ensure_ascii=False, indent=2))
+    # train_data = []
+    # test_data = []
+    # for i in range(train_df.shape[0]):
+    #     label, content = train_df.iloc[i, :]
+    #     label_id = [0] * len(labels)
+    #     for j, _ in enumerate(labels):
+    #         for separate_label in label.split(","):
+    #             if _ == separate_label:
+    #                 label_id[j] = 1
+    #     train_data.append((content, label_id))
 
-    train_data = []
-    test_data = []
-    for i in range(train_df.shape[0]):
-        label, content = train_df.iloc[i, :]
-        label_id = [0] * len(labels)
-        for j, _ in enumerate(labels):
-            for separate_label in label.split(","):
-                if _ == separate_label:
-                    label_id[j] = 1
-        train_data.append((content, label_id))
+    # for i in range(test_df.shape[0]):
+    #     label, content = test_df.iloc[i, :]
+    #     label_id = [0] * len(labels)
+    #     for j, _ in enumerate(labels):
+    #         for separate_label in label.split(","):
+    #             if _ == separate_label:
+    #                 label_id[j] = 1
+    #     test_data.append((content, label_id))
 
-    for i in range(test_df.shape[0]):
-        label, content = test_df.iloc[i, :]
-        label_id = [0] * len(labels)
-        for j, _ in enumerate(labels):
-            for separate_label in label.split(","):
-                if _ == separate_label:
-                    label_id[j] = 1
-        test_data.append((content, label_id))
-
-    # print(train_data[:10])
+    # # print(train_data[:10])
     print("finish data processing!")
 
     # 模型训练
+    train_pd_data = pd.read_csv("./archive/train.csv")
+    test_pd_data = pd.read_csv("./archive/test.csv")
+    labels = ['Computer Science', 'Physics', 'Mathematics', 'Statistics', 'Quantitative Biology', 'Quantitative Finance']
+    
+    train_data = np.column_stack((np.expand_dims(train_pd_data.loc[:,'ABSTRACT'].values, axis=1), train_pd_data.loc[:,labels].values))
+    test_data = np.expand_dims(test_pd_data.loc[:,'ABSTRACT'].values, axis=1)
+
     model = create_cls_model(len(labels))
     train_D = DataGenerator(train_data)
     test_D = DataGenerator(test_data)
